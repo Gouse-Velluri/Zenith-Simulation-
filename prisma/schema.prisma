@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("STUDENT") // STUDENT, TRAINER, ADMIN
+  avatar    String?
+  bio       String?
+  lastActiveAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments    Enrollment[]
+  submissions    Submission[]
+  reviews        Review[]
+  createdBatches Batch[] @relation("BatchCreator")
+  createdLabs    Lab[]   @relation("LabCreator")
+  skillEvidence  SkillEvidence[]
+}
+
+model Track {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  labs        Lab[]
+  enrollments Enrollment[]
+  batches     Batch[]
+}
+
+model Lab {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  difficulty    String   @default("BEGINNER") // BEGINNER, INTERMEDIATE, ADVANCED
+  points        Int      @default(10)
+  ticketTitle   String
+  ticketBody    String   // Markdown with problem, steps, expected behavior
+  hints         String   // JSON array of 3 progressive hints
+  starterCode   String   // Initial code given to student
+  testCases     String   // JSON array of test cases
+  skills        String   // JSON array of skill tags
+  trackId       String?
+  creatorId     String
+  order         Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  track     Track?    @relation(fields: [trackId], references: [id])
+  creator   User      @relation("LabCreator", fields: [creatorId], references: [id])
+  submissions Submission[]
+}
+
+model Batch {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  trackId     String?
+  startDate   DateTime
+  endDate     DateTime?
+  creatorId   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  track      Track?       @relation(fields: [trackId], references: [id])
+  creator    User         @relation("BatchCreator", fields: [creatorId], references: [id])
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  batchId   String
+  trackId   String?
+  joinedAt  DateTime @default(now())
+  progress  Float    @default(0)
+
+  user    User   @relation(fields: [userId], references: [id])
+  batch   Batch  @relation(fields: [batchId], references: [id])
+  track   Track? @relation(fields: [trackId], references: [id])
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  labId       String
+  userId      String
+  code        String
+  testResults String?  // JSON: passed/failed tests
+  score       Float?
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED, REVIEW
+  aiFeedback  String?  // AI-generated feedback (markdown)
+  submittedAt DateTime @default(now())
+  reviewedAt  DateTime?
+
+  lab     Lab     @relation(fields: [labId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  reviews Review[]
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  submissionId String
+  reviewerId  String
+  comments    String
+  score       Float?
+  createdAt   DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+  reviewer   User       @relation(fields: [reviewerId], references: [id])
+}
+
+model SkillEvidence {
+  id          String   @id @default(cuid())
+  userId      String
+  skillName   String
+  labTitle    String?
+  level       String   @default("BEGINNER") // BEGINNER, INTERMEDIATE, ADVANCED
+  score       Float?
+  verifiedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
